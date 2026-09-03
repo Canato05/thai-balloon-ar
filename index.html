@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>เกมยิงลูกโป่งพยัญชนะไทย (AR)</title>
+    
+    <!-- โหลด Google MediaPipe Hands ผ่าน CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Mali:wght@400;600;700&display=swap');
+
+        :root {
+            --primary: #FFB6C1; /* Pastel Pink */
+            --secondary: #87CEFA; /* Pastel Blue */
+            --accent: #FFD700; /* Pastel Yellow */
+            --bg-color: #F0F8FF;
+            --text-color: #4A4A4A;
+            --btn-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            font-family: 'Mali', cursive;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden; /* ห้ามเลื่อนจอ */
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: none; /* ป้องกัน gesture ระดับเบราว์เซอร์ */
+        }
+
+        /* ---------------- Screens ---------------- */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--bg-color);
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        #screen-main { background-image: url('images/bg-main.jpg'); }
+        #screen-game { 
+            background-image: url('images/bg-game.jpg');
+            justify-content: flex-start;
+        }
+
+        /* ---------------- UI Components ---------------- */
+        h1 {
+            font-size: 3.5rem;
+            text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
+            margin-bottom: 2rem;
+            color: #FF69B4;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px 30px;
+            border-radius: 30px;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            font-size: 2rem;
+            font-weight: 700;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: var(--btn-shadow);
+            transition: transform 0.2s;
+            margin: 10px;
+        }
+
+        .btn:hover { transform: scale(1.05); }
+        .btn-blue { background: var(--secondary); }
+        .btn-yellow { background: var(--accent); color: #555; }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 30px;
+            box-shadow: var(--btn-shadow);
+            text-align: center;
+            border: 3px solid var(--secondary);
+        }
+
+        /* Control จำนวนโจทย์และระดับความเร็ว */
+        .count-control {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+        }
+        .count-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            border: none;
+            background: var(--secondary);
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            margin: 0 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* ปุ่มเปิด/ปิดเสียง */
+        #mute-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #FFB6C1;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 2rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        #mute-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Panel สำหรับหน้าเลือกพยัญชนะ */
+        #panel-select-char {
+            max-width: 90%; 
+            max-height: 75vh; 
+            overflow-y: auto;
+        }
+
+        #char-grid {
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            gap: 15px; 
+            margin-top: 20px;
+        }
+        
+        .char-btn {
+            background: #FFB6C1;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            width: 70px;
+            height: 70px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .char-btn:hover {
+            transform: scale(1.1);
+            background: #FF69B4;
+        }
+
+        /* ---------------- Game Screen Layout ---------------- */
+        .game-top {
+            width: 100%;
+            height: 33vh; /* ส่วนบน 1/3 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 5%;
+            position: relative;
+        }
+
+        .game-title { font-size: 2rem; color: #fff; background: #FF69B4; padding: 10px 20px; border-radius: 20px; }
+        
+        .top-right-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-right: 70px; /* เว้นระยะไม่ให้ทับซ้อนปุ่ม Mute มุมจอ */
+        }
+
+        .score-board { font-size: 2rem; color: #fff; background: #87CEFA; padding: 10px 20px; border-radius: 20px; }
+
+        /* ปุ่มออกเกม (ตำแหน่งด้านบน) */
+        #exit-btn {
+            background: #FF6347;
+            color: white;
+            font-size: 1.2rem;
+            padding: 8px 25px;
+            border-radius: 30px;
+            border: 3px solid white;
+            box-shadow: var(--btn-shadow);
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin: 0; 
+        }
+        #exit-btn:hover { transform: scale(1.05); }
+
+        .target-box {
+            background: rgba(255, 255, 255, 0.95);
+            border: 4px solid var(--primary);
+            border-radius: 20px;
+            width: 200px;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: var(--btn-shadow);
+        }
+
+        .target-img { max-width: 120px; max-height: 120px; display: block; }
+        .target-char { font-size: 3rem; font-weight: bold; color: #333; margin-top: -10px; }
+        .hidden-ele { display: none !important; }
+
+        .game-bottom {
+            width: 90%;
+            height: 62vh; /* ส่วนล่าง 2/3 */
+            background: #000;
+            border-radius: 30px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: var(--btn-shadow);
+            border: 5px solid white;
+            margin-bottom: 2vh;
+        }
+
+        #webcam-video { display: none; }
+        
+        #game-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #start-ar-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #FF4500;
+            font-size: 3rem;
+            padding: 20px 50px;
+            z-index: 10;
+        }
+
+        .countdown-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8rem;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 0 20px #FF4500, 0 0 10px #000;
+            z-index: 5;
+            display: none;
+        }
+
+        #debug-msg {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+
+        /* สำหรับ UI Speed Setting */
+        .speed-label {
+            font-size: 1.8rem;
+            margin-right: 15px;
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- แท็กเสียง BGM 2 แทร็ก -->
+    <audio id="bg-music-menu" src="images/bg-main.mp3" loop></audio>
+    <audio id="bg-music-game" src="images/bg-game.mp3" loop></audio>
+    
+    <!-- ปุ่มเปิดปิดเสียง -->
+    <button id="mute-btn" onclick="toggleMute()">🔊</button>
+
+    <!-- 1. หน้าจอหลัก -->
+    <div id="screen-main" class="screen active">
+        <h1>เกมยิงลูกโป่งพยัญชนะไทย</h1>
+        <!-- ผูกระบบเริ่มเสียงเข้ากับปุ่มแรกสุด -->
+        <button class="btn" onclick="initAudio(); switchScreen('screen-mode')">เข้าเกม</button>
+    </div>
+
+    <!-- 2. หน้าเลือกโหมด -->
+    <div id="screen-mode" class="screen">
+        <div class="panel">
+            <h2>ตั้งค่าจำนวนโจทย์</h2>
+            <br>
+            <div class="count-control">
+                <button class="count-btn" onclick="changeCount(-1)">-</button>
+                <span id="question-count-display">5</span>
+                <button class="count-btn" onclick="changeCount(1)">+</button>
+            </div>
+            <button class="btn btn-blue" onclick="chooseTargetMode('select')">เลือกพยัญชนะเอง</button>
+            <button class="btn btn-yellow" onclick="chooseTargetMode('random')">สุ่มพยัญชนะ</button>
+            <br><br>
+            <button class="btn" style="background:#ccc" onclick="switchScreen('screen-main')">กลับ</button>
+        </div>
+    </div>
+
+    <!-- หน้าจอเลือกพยัญชนะ 44 ตัว -->
+    <div id="screen-select-char" class="screen">
+        <div id="panel-select-char" class="panel">
+            <h2>เลือกพยัญชนะเป้าหมาย</h2>
+            <div id="char-grid"></div>
+            <br>
+            <button class="btn" style="background:#ccc" onclick="switchScreen('screen-mode')">กลับ</button>
+        </div>
+    </div>
+
+    <!-- 3. หน้าเลือกความยาก และ ความเร็ว -->
+    <div id="screen-difficulty" class="screen">
+        <div class="panel">
+            <div class="count-control" style="background: rgba(255,182,193,0.3); padding: 10px 20px; border-radius: 20px;">
+                <span class="speed-label">ความเร็วลูกโป่ง:</span>
+                <button class="count-btn" onclick="changeSpeed(-1)">-</button>
+                <span id="speed-level-display" style="font-size: 2.5rem; font-weight: bold; color: #FF69B4; width: 40px;">1</span>
+                <button class="count-btn" onclick="changeSpeed(1)">+</button>
+            </div>
+            
+            <h2 style="margin-top: 10px;">เลือกระดับความยาก</h2>
+            <br>
+            <button class="btn" style="background:#a8e6cf" onclick="startGame('easy')">ง่าย</button>
+            <button class="btn btn-yellow" onclick="startGame('medium')">ปานกลาง</button>
+            <button class="btn" style="background:#ff8b94" onclick="startGame('hard')">ยาก</button>
+            <br><br>
+            <button class="btn" style="background:#ccc" onclick="switchScreen('screen-mode')">กลับ</button>
+        </div>
+    </div>
+
+    <!-- 4. หน้าเล่นเกม -->
+    <div id="screen-game" class="screen">
+        <div class="game-top">
+            <div class="game-title">พยัญชนะไทย</div>
+            
+            <div class="target-box" id="ui-target-box">
+                <img id="ui-target-img" class="target-img" src="" alt="โจทย์" onerror="this.style.display='none'">
+                <div id="ui-target-char" class="target-char">ก</div>
+            </div>
+
+            <!-- รวมคะแนนและปุ่มออกเกมไว้ในบล็อกเดียวกันทางขวา -->
+            <div class="top-right-panel">
+                <div class="score-board">คะแนน: <span id="score-display">0</span> / <span id="max-score-display">5</span></div>
+                <button id="exit-btn" onclick="exitGame()">ออกเกม</button>
+            </div>
+        </div>
+
+        <div class="game-bottom">
+            <video id="webcam-video" autoplay playsinline></video>
+            <canvas id="game-canvas"></canvas>
+            <!-- ปุ่มเริ่มเกมด้านใน AR -->
+            <button id="start-ar-btn" class="btn" onclick="startCountdown()">เริ่มเกม</button>
+            <div id="countdown-display" class="countdown-text">5</div>
+            <div id="debug-msg">สถานะ: รอโหลดกล้อง...</div>
+        </div>
+    </div>
+
+    <!-- 5. หน้าสรุปผล -->
+    <div id="screen-result" class="screen">
+        <div class="panel">
+            <h1>จบเกม!</h1>
+            <h2 style="font-size:3rem">คะแนนที่ได้: <span id="final-score" style="color:var(--primary)">0</span></h2>
+            <br><br>
+            <!-- เมื่อกดเล่นอีกครั้ง ให้กลับไปหน้า Mode -->
+            <button class="btn" onclick="resetToMode()">เล่นอีกครั้ง</button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 0. ระบบเสียง (Dual BGM & Web Audio API SFX)
+        // ==========================================
+        let audioCtx;
+        let isMuted = false;
+        let currentBGMType = 'none';
+        
+        const bgmMenu = document.getElementById('bg-music-menu');
+        const bgmGame = document.getElementById('bg-music-game');
+        const muteBtn = document.getElementById('mute-btn');
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if(audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            if (currentBGMType === 'none') {
+                switchBGM('menu');
+            }
+        }
+
+        function switchBGM(type) {
+            currentBGMType = type;
+            if (isMuted) return; 
+
+            if (type === 'menu') {
+                bgmGame.pause();
+                bgmGame.currentTime = 0; 
+                bgmMenu.play().catch(e => console.log("BGM Menu block:", e));
+            } else if (type === 'game') {
+                bgmMenu.pause();
+                bgmGame.play().catch(e => console.log("BGM Game block:", e));
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            if (isMuted) {
+                bgmMenu.pause();
+                bgmGame.pause();
+                muteBtn.innerText = '🔇';
+            } else {
+                initAudio(); 
+                switchBGM(currentBGMType); 
+                muteBtn.innerText = '🔊';
+            }
+        }
+
+        // --- Procedural Sound Effects ---
+        function playHoverSound() {
+            if (!audioCtx || isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime); 
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); 
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playClickSound() {
+            if (!audioCtx || isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1); 
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playPopSound() {
+            if (!audioCtx || isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine'; 
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1); 
+        }
+
+        function playBeepSound(isHighPitch) {
+            if (!audioCtx || isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square'; 
+            osc.frequency.setValueAtTime(isHighPitch ? 880 : 440, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function attachUISoundsToButton(btn) {
+            btn.addEventListener('mouseenter', () => { if(audioCtx) playHoverSound(); });
+            btn.addEventListener('click', () => { if(audioCtx) playClickSound(); });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const staticButtons = document.querySelectorAll('.btn, .count-btn, #exit-btn');
+            staticButtons.forEach(btn => attachUISoundsToButton(btn));
+        });
+
+        // ==========================================
+        // 1. ฐานข้อมูลพยัญชนะ (Assets & Paths) 
+        // ==========================================
+        const simGroups = {
+            g1: ['ข', 'ช', 'ซ'], g2: ['ค', 'ศ', 'ด', 'ต'], g3: ['ฎ', 'ฏ', 'ฐ'],
+            g4: ['พ', 'ฟ', 'ผ', 'ฝ'], g5: ['บ', 'ป', 'ษ'], g6: ['ถ', 'ภ', 'ญ'],
+            g7: ['น', 'ม'], g8: ['ร', 'ธ'], g9: ['อ', 'ฮ']
+        };
+
+        const db = [
+            { char: 'ก', img: 'images/ko-kai.png', group: 'g6' }, { char: 'ข', img: 'images/kho-khai.png', group: 'g1' },
+            { char: 'ฃ', img: 'images/kho-khuat.png', group: 'g1' }, { char: 'ค', img: 'images/kho-khwai.png', group: 'g2' },
+            { char: 'ฅ', img: 'images/kho-khon.png', group: 'g2' }, { char: 'ฆ', img: 'images/kho-rakhang.png', group: 'none' },
+            { char: 'ง', img: 'images/ngo-ngu.png', group: 'none' }, { char: 'จ', img: 'images/cho-chan.png', group: 'g3' },
+            { char: 'ฉ', img: 'images/cho-ching.png', group: 'none' }, { char: 'ช', img: 'images/cho-chang.png', group: 'g1' },
+            { char: 'ซ', img: 'images/so-so.png', group: 'g1' }, { char: 'ฌ', img: 'images/cho-choe.png', group: 'none' },
+            { char: 'ญ', img: 'images/yo-ying.png', group: 'g6' }, { char: 'ฎ', img: 'images/do-chada.png', group: 'g3' },
+            { char: 'ฏ', img: 'images/to-patak.png', group: 'g3' }, { char: 'ฐ', img: 'images/tho-than.png', group: 'g3' },
+            { char: 'ฑ', img: 'images/tho-montho.png', group: 'none' }, { char: 'ฒ', img: 'images/tho-phuthao.png', group: 'none' },
+            { char: 'ณ', img: 'images/no-nen.png', group: 'none' }, { char: 'ด', img: 'images/do-dek.png', group: 'g2' },
+            { char: 'ต', img: 'images/to-tao.png', group: 'g2' }, { char: 'ถ', img: 'images/tho-thung.png', group: 'g6' },
+            { char: 'ท', img: 'images/tho-thahan.png', group: 'none' }, { char: 'ธ', img: 'images/tho-thong.png', group: 'g8' },
+            { char: 'น', img: 'images/no-nu.png', group: 'g7' }, { char: 'บ', img: 'images/bo-baimai.png', group: 'g5' },
+            { char: 'ป', img: 'images/po-pla.png', group: 'g5' }, { char: 'ผ', img: 'images/pho-phueng.png', group: 'g4' },
+            { char: 'ฝ', img: 'images/fo-fa.png', group: 'g4' }, { char: 'พ', img: 'images/pho-phan.png', group: 'g4' },
+            { char: 'ฟ', img: 'images/fo-fan.png', group: 'g4' }, { char: 'ภ', img: 'images/pho-samphao.png', group: 'g6' },
+            { char: 'ม', img: 'images/mo-ma.png', group: 'g7' }, { char: 'ย', img: 'images/yo-yak.png', group: 'none' },
+            { char: 'ร', img: 'images/ro-ruea.png', group: 'g8' }, { char: 'ล', img: 'images/lo-ling.png', group: 'none' },
+            { char: 'ว', img: 'images/wo-waen.png', group: 'none' }, { char: 'ศ', img: 'images/so-sala.png', group: 'g2' },
+            { char: 'ษ', img: 'images/so-ruesi.png', group: 'g5' }, { char: 'ส', img: 'images/so-suea.png', group: 'none' },
+            { char: 'ห', img: 'images/ho-hip.png', group: 'none' }, { char: 'ฬ', img: 'images/lo-chula.png', group: 'none' },
+            { char: 'อ', img: 'images/o-ang.png', group: 'g9' }, { char: 'ฮ', img: 'images/ho-nokhuk.png', group: 'g9' }
+        ];
+
+        // ==========================================
+        // 2. State & Settings
+        // ==========================================
+        let qCount = 5;
+        let speedLevel = 1; // ระดับความเร็ว 1 ถึง 5 (Default 1)
+        let targetConsonant = null;
+        let difficultyLevel = 'easy';
+        let score = 0;
+        
+        let playState = 'WAIT';
+        let countdownTimer = 5; // เปลี่ยนเป็น 5 วินาที
+        let countdownInterval;
+
+        let balloonQueue = []; 
+        let activeBalloons = []; 
+        let poppedBalloonsCount = 0; 
+        let activeEffects = []; 
+
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const videoElement = document.getElementById('webcam-video');
+        
+        let pointer = { x: -100, y: -100, isHand: false }; 
+        const POINTER_RADIUS = 20; // รัศมีเป้าเล็งวงกลมน่ารัก
+        
+        let cameraObj = null;
+        let handsObj = null;
+        let animationFrameId;
+
+        const uiTargetImg = document.getElementById('ui-target-img');
+        const uiTargetChar = document.getElementById('ui-target-char');
+
+        // ==========================================
+        // 3. UI Flow Navigation & Dynamic Generate
+        // ==========================================
+        function initCharGrid() {
+            const grid = document.getElementById('char-grid');
+            grid.innerHTML = ''; 
+            
+            db.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = 'char-btn';
+                btn.innerText = item.char;
+                
+                attachUISoundsToButton(btn);
+
+                btn.onclick = () => {
+                    targetConsonant = item;
+                    switchScreen('screen-difficulty');
+                };
+                grid.appendChild(btn);
+            });
+        }
+        initCharGrid();
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function changeCount(val) {
+            qCount += val;
+            if(qCount < 1) qCount = 1;
+            if(qCount > 20) qCount = 20;
+            document.getElementById('question-count-display').innerText = qCount;
+        }
+
+        // ฟังก์ชันตั้งค่าระดับความเร็ว
+        function changeSpeed(val) {
+            speedLevel += val;
+            if(speedLevel < 1) speedLevel = 1;
+            if(speedLevel > 5) speedLevel = 5;
+            document.getElementById('speed-level-display').innerText = speedLevel;
+        }
+
+        function chooseTargetMode(mode) {
+            if (mode === 'select') {
+                switchScreen('screen-select-char'); 
+            } else if (mode === 'random') {
+                targetConsonant = db[Math.floor(Math.random() * db.length)]; 
+                switchScreen('screen-difficulty');
+            }
+        }
+
+        function startGame(diff) {
+            difficultyLevel = diff;
+            score = 0;
+            playState = 'WAIT';
+            activeBalloons = [];
+            activeEffects = [];
+            poppedBalloonsCount = 0;
+            
+            document.getElementById('score-display').innerText = score;
+            document.getElementById('max-score-display').innerText = qCount;
+            document.getElementById('start-ar-btn').style.display = 'block';
+            document.getElementById('countdown-display').style.display = 'none';
+
+            updateTargetUI('WAIT');
+            generateBalloonQueue();
+
+            switchScreen('screen-game');
+            resizeCanvas();
+            initAR(); 
+            startRenderLoop();
+        }
+
+        function exitGame() {
+            balloonQueue = [];
+            activeBalloons = [];
+            activeEffects = [];
+            if(countdownInterval) clearInterval(countdownInterval);
+            document.getElementById('countdown-display').style.display = 'none';
+            score = 0;
+            playState = 'WAIT';
+            pointer.x = -100;
+            pointer.y = -100;
+            
+            stopAR();
+            switchBGM('menu'); 
+            switchScreen('screen-mode');
+        }
+
+        function resetToMode() {
+            stopAR();
+            score = 0;
+            balloonQueue = [];
+            activeBalloons = [];
+            activeEffects = [];
+            pointer.x = -100;
+            pointer.y = -100;
+            switchScreen('screen-mode');
+        }
+
+        // ==========================================
+        // 4. ตรรกะระดับความยาก & สร้างคิวลูกโป่ง
+        // ==========================================
+        function updateTargetUI(state) {
+            uiTargetImg.src = targetConsonant.img;
+            uiTargetImg.style.display = 'block';
+            uiTargetChar.innerText = targetConsonant.char;
+
+            if (difficultyLevel === 'easy') {
+                uiTargetChar.classList.remove('hidden-ele');
+            } else if (difficultyLevel === 'medium') {
+                if (state === 'PLAY') uiTargetChar.classList.add('hidden-ele');
+                else uiTargetChar.classList.remove('hidden-ele'); 
+            } else if (difficultyLevel === 'hard') {
+                uiTargetChar.classList.add('hidden-ele'); 
+            }
+        }
+
+        function generateBalloonQueue() {
+            balloonQueue = [];
+            
+            for(let i=0; i<qCount; i++) {
+                balloonQueue.push({ char: targetConsonant.char, isTarget: true });
+            }
+
+            let distractorCount = Math.max(1, Math.floor(qCount * 0.75));
+            
+            for(let i=0; i<distractorCount; i++) {
+                let distractorChar = '';
+                if (Math.random() < 0.6 && targetConsonant.group !== 'none') {
+                    let simArr = simGroups[targetConsonant.group].filter(c => c !== targetConsonant.char);
+                    if(simArr.length > 0) distractorChar = simArr[Math.floor(Math.random() * simArr.length)];
+                    else distractorChar = db[Math.floor(Math.random() * db.length)].char;
+                } else {
+                    let rDb = db[Math.floor(Math.random() * db.length)];
+                    while(rDb.char === targetConsonant.char) rDb = db[Math.floor(Math.random() * db.length)];
+                    distractorChar = rDb.char;
+                }
+                balloonQueue.push({ char: distractorChar, isTarget: false });
+            }
+            balloonQueue.sort(() => Math.random() - 0.5);
+        }
+
+        // ==========================================
+        // 5. ระบบลูกโป่ง ฟิสิกส์ ความเร็ว และ เอฟเฟกต์
+        // ==========================================
+        const pastelColors = ['#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#BAE1FF', '#E8BAFF'];
+
+        function spawnBalloons() {
+            if (playState !== 'PLAY') return;
+            if (activeBalloons.length >= 3) return; 
+            if (balloonQueue.length === 0) return;
+
+            if (Math.random() < 0.02) { 
+                let spawnAmount = Math.floor(Math.random() * 2) + 1;
+                
+                for(let i=0; i<spawnAmount; i++) {
+                    if (activeBalloons.length >= 3 || balloonQueue.length === 0) break;
+                    
+                    let bData = balloonQueue.pop();
+                    let radius = canvas.width * 0.08; 
+                    if(radius < 40) radius = 40;
+                    if(radius > 80) radius = 80;
+
+                    // การคำนวณความเร็ว (Speed Logic) ตามค่า speedLevel (1 ถึง 5)
+                    let baseSpeedY = (Math.random() * 0.3 + 0.5) * (canvas.height/600);
+                    // ตัวคูณความเร็ว: ระดับ 1 คูณ 1.0 (ปกติ) / ระดับ 5 คูณ 3.8 (เร็วมาก)
+                    let speedMultiplier = 1 + (speedLevel - 1) * 0.7; 
+
+                    activeBalloons.push({
+                        x: Math.random() * (canvas.width - radius*2) + radius,
+                        y: canvas.height + radius + 10,
+                        radius: radius,
+                        char: bData.char,
+                        isTarget: bData.isTarget,
+                        speedY: baseSpeedY * speedMultiplier, 
+                        color: pastelColors[Math.floor(Math.random() * pastelColors.length)]
+                    });
+                }
+            }
+        }
+
+        function resolveBalloonCollisions() {
+            for (let i = 0; i < activeBalloons.length; i++) {
+                for (let j = i + 1; j < activeBalloons.length; j++) {
+                    let b1 = activeBalloons[i];
+                    let b2 = activeBalloons[j];
+                    
+                    let dx = b2.x - b1.x;
+                    let dy = b2.y - b1.y;
+                    let dist = Math.hypot(dx, dy);
+                    let minDist = b1.radius + b2.radius; 
+                    
+                    if (dist < minDist && dist > 0) {
+                        let overlap = minDist - dist;
+                        let nx = dx / dist; 
+                        let ny = dy / dist; 
+                        
+                        b1.x -= nx * (overlap / 2) * 0.2;
+                        b1.y -= ny * (overlap / 2) * 0.2;
+                        b2.x += nx * (overlap / 2) * 0.2;
+                        b2.y += ny * (overlap / 2) * 0.2;
+                    }
+                }
+            }
+        }
+
+        function updateAndDrawBalloons() {
+            for (let i = activeBalloons.length - 1; i >= 0; i--) {
+                let b = activeBalloons[i];
+                b.y -= b.speedY;
+
+                if (b.y + b.radius < 0) {
+                    activeBalloons.splice(i, 1);
+                    poppedBalloonsCount++;
+                    checkGameEnd();
+                }
+            }
+
+            resolveBalloonCollisions();
+
+            for (let i = activeBalloons.length - 1; i >= 0; i--) {
+                let b = activeBalloons[i];
+
+                ctx.beginPath();
+                ctx.fillStyle = b.color;
+                ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.arc(b.x - b.radius*0.3, b.y - b.radius*0.3, b.radius*0.2, 0, Math.PI*2);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.fillStyle = b.color;
+                ctx.moveTo(b.x, b.y + b.radius - 2);
+                ctx.lineTo(b.x - 10, b.y + b.radius + 15);
+                ctx.lineTo(b.x + 10, b.y + b.radius + 15);
+                ctx.fill();
+
+                ctx.fillStyle = '#333';
+                ctx.font = `bold ${b.radius}px 'Mali', cursive`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(b.char, b.x, b.y);
+
+                // เช็คการชน (Circle-to-Circle Collision) ระหว่างลูกโป่ง กับ วงกลมเป้าเล็ง
+                if (playState === 'PLAY') {
+                    let dist = Math.hypot(pointer.x - b.x, pointer.y - b.y);
+                    if (dist < b.radius + POINTER_RADIUS) {
+                        if (b.isTarget) {
+                            score++;
+                        } else {
+                            score--;
+                            if(score < 0) score = 0; 
+                        }
+                        document.getElementById('score-display').innerText = score;
+                        
+                        activeEffects.push({
+                            x: b.x, 
+                            y: b.y, 
+                            radius: b.radius, 
+                            alpha: 1.0 
+                        });
+
+                        playPopSound(); 
+
+                        activeBalloons.splice(i, 1);
+                        poppedBalloonsCount++;
+                        checkGameEnd();
+                    }
+                }
+            }
+        }
+
+        function drawEffects() {
+            for (let i = activeEffects.length - 1; i >= 0; i--) {
+                let eff = activeEffects[i];
+                eff.radius += 4; 
+                eff.alpha -= 0.05; 
+                
+                if (eff.alpha <= 0) {
+                    activeEffects.splice(i, 1); 
+                    continue;
+                }
+                
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${eff.alpha})`;
+                ctx.lineWidth = 6;
+                ctx.arc(eff.x, eff.y, eff.radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(255, 215, 0, ${eff.alpha})`;
+                ctx.lineWidth = 3;
+                ctx.arc(eff.x, eff.y, eff.radius * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+
+        // ==========================================
+        // 6. MediaPipe AR & Touch Fallback 
+        // ==========================================
+        function initAR() {
+            document.getElementById('debug-msg').innerText = "สถานะ: กำลังโหลดกล้อง...";
+            
+            if (!handsObj) {
+                try {
+                    handsObj = new Hands({locateFile: (file) => {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                    }});
+                    handsObj.setOptions({
+                        maxNumHands: 1,
+                        modelComplexity: 1,
+                        minDetectionConfidence: 0.6,
+                        minTrackingConfidence: 0.6
+                    });
+                    handsObj.onResults(onARResults);
+
+                    cameraObj = new Camera(videoElement, {
+                        onFrame: async () => {
+                            await handsObj.send({image: videoElement});
+                        },
+                        width: 640,
+                        height: 480
+                    });
+                    cameraObj.start()
+                        .then(() => { document.getElementById('debug-msg').innerText = "สถานะ: AR Active"; })
+                        .catch(err => {
+                            console.error("Camera Error: ", err);
+                            document.getElementById('debug-msg').innerText = "สถานะ: ไม่พบกล้อง (ใช้ระบบสัมผัส/เมาส์แทน)";
+                        });
+                } catch (e) {
+                    console.log("MediaPipe Error", e);
+                    document.getElementById('debug-msg').innerText = "สถานะ: โหลด AR ไม่สำเร็จ";
+                }
+            } else {
+                if(cameraObj) cameraObj.start();
+            }
+
+            canvas.addEventListener('mousemove', (e) => {
+                if(!pointer.isHand) { 
+                    let rect = canvas.getBoundingClientRect();
+                    pointer.x = e.clientX - rect.left;
+                    pointer.y = e.clientY - rect.top;
+                }
+            });
+            canvas.addEventListener('mouseleave', () => {
+                if(!pointer.isHand) { pointer.x = -100; pointer.y = -100; }
+            });
+
+            canvas.addEventListener('touchstart', (e) => {
+                if(!pointer.isHand) {
+                    e.preventDefault(); 
+                    let rect = canvas.getBoundingClientRect();
+                    pointer.x = e.touches[0].clientX - rect.left;
+                    pointer.y = e.touches[0].clientY - rect.top;
+                }
+            }, { passive: false }); 
+
+            canvas.addEventListener('touchmove', (e) => {
+                if(!pointer.isHand) {
+                    e.preventDefault(); 
+                    let rect = canvas.getBoundingClientRect();
+                    pointer.x = e.touches[0].clientX - rect.left;
+                    pointer.y = e.touches[0].clientY - rect.top;
+                }
+            }, { passive: false });
+            
+            canvas.addEventListener('touchend', (e) => {
+                if(!pointer.isHand) {
+                    pointer.x = -100;
+                    pointer.y = -100;
+                }
+            });
+        }
+
+        function stopAR() {
+            if(cameraObj) cameraObj.stop();
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        function onARResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                pointer.isHand = true;
+                
+                // ใช้โคนนิ้วกลาง (Landmark 9) เป็นจุด Tracking เสถียร
+                let trackPoint = results.multiHandLandmarks[0][9];
+                pointer.x = (1 - trackPoint.x) * canvas.width; 
+                pointer.y = trackPoint.y * canvas.height;
+
+            } else {
+                pointer.isHand = false;
+            }
+        }
+
+        function drawCrosshair() {
+            if (pointer.x < 0 || pointer.y < 0) return;
+
+            // เป้าเล็งวงกลมน่ารัก (รัศมีอ้างอิงจาก POINTER_RADIUS)
+            ctx.beginPath();
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.arc(pointer.x, pointer.y, POINTER_RADIUS, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ขอบสีฟ้าพาสเทล
+            ctx.beginPath();
+            ctx.strokeStyle = '#87CEFA';
+            ctx.lineWidth = 4;
+            ctx.arc(pointer.x, pointer.y, POINTER_RADIUS, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // จุดเล็งสีชมพูตรงกลาง
+            ctx.beginPath();
+            ctx.fillStyle = '#FFB6C1'; 
+            ctx.arc(pointer.x, pointer.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function resizeCanvas() {
+            const container = document.querySelector('.game-bottom');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // ==========================================
+        // 7. Game Loop & States Control
+        // ==========================================
+        function startRenderLoop() {
+            function loop(timestamp) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.scale(-1, 1);
+                if(videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(videoElement, -canvas.width, 0, canvas.width, canvas.height);
+                } else {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(-canvas.width, 0, canvas.width, canvas.height);
+                }
+                ctx.restore();
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                spawnBalloons();
+                updateAndDrawBalloons();
+                drawEffects(); 
+                drawCrosshair();
+                checkARHoverButtons(); 
+
+                animationFrameId = requestAnimationFrame(loop);
+            }
+            animationFrameId = requestAnimationFrame(loop);
+        }
+
+        function checkARHoverButtons() {
+            if (pointer.x < 0 || pointer.y < 0) return;
+
+            if (playState === 'WAIT') {
+                let startBtn = document.getElementById('start-ar-btn');
+                if (startBtn.style.display !== 'none' && isPointerOver(startBtn)) {
+                    startCountdown();
+                }
+            }
+        }
+
+        function isPointerOver(element) {
+            let rect = element.getBoundingClientRect();
+            let canvasRect = canvas.getBoundingClientRect();
+            
+            let cx = (rect.left - canvasRect.left) + rect.width / 2;
+            let cy = (rect.top - canvasRect.top) + rect.height / 2;
+            
+            let dist = Math.hypot(pointer.x - cx, pointer.y - cy);
+            return dist < (Math.max(rect.width, rect.height) / 2 + POINTER_RADIUS);
+        }
+
+        function startCountdown() {
+            if (playState !== 'WAIT') return;
+            
+            document.getElementById('start-ar-btn').style.display = 'none';
+            document.getElementById('countdown-display').style.display = 'block';
+            playState = 'COUNTDOWN';
+            countdownTimer = 5; // เปลี่ยนเป็นนับถอยหลัง 5 วินาที
+            updateTargetUI('COUNTDOWN');
+            
+            switchBGM('game'); 
+            playBeepSound(false); 
+
+            countdownInterval = setInterval(() => {
+                countdownTimer--;
+                document.getElementById('countdown-display').innerText = countdownTimer;
+                
+                if (countdownTimer > 0) {
+                    playBeepSound(false); 
+                } else if (countdownTimer <= 0) {
+                    clearInterval(countdownInterval);
+                    document.getElementById('countdown-display').style.display = 'none';
+                    playState = 'PLAY';
+                    updateTargetUI('PLAY'); 
+                    playBeepSound(true); // เสียงสูงขึ้นเมื่อเกมเริ่ม
+                }
+            }, 1000);
+        }
+
+        function checkGameEnd() {
+            if (balloonQueue.length === 0 && activeBalloons.length === 0) {
+                setTimeout(() => {
+                    playState = 'END';
+                    document.getElementById('final-score').innerText = score;
+                    switchBGM('menu'); 
+                    switchScreen('screen-result');
+                }, 1000);
+            }
+        }
+
+    </script>
+</body>
+</html>
