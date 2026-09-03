@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>เกมยิงลูกโป่งพยัญชนะไทย (AR)</title>
+    <title>เกมจับลูกโป่งพยัญชนะไทย (AR)</title>
     
     <!-- โหลด Google MediaPipe Hands ผ่าน CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -377,7 +377,7 @@
 
     <!-- 1. หน้าจอหลัก -->
     <div id="screen-main" class="screen active">
-        <h1>เกมยิงลูกโป่งพยัญชนะไทย</h1>
+        <h1>เกมจับลูกโป่งพยัญชนะไทย</h1>
         <!-- ผูกระบบเริ่มเสียงเข้ากับปุ่มแรกสุด เพื่อปลดล็อก AudioContext (Global Event) -->
         <button class="btn" onclick="initAudio(); switchScreen('screen-mode')">เข้าเกม</button>
     </div>
@@ -432,7 +432,7 @@
     <!-- 4. หน้าเล่นเกม -->
     <div id="screen-game" class="screen">
         <div class="game-top">
-            <div class="game-title">พยัญชนะไทย</div>
+            <div class="game-title">ลูกโป่งหรรษา</div>
             
             <div class="target-box" id="ui-target-box">
                 <img id="ui-target-img" class="target-img" src="" alt="โจทย์" onerror="this.style.display='none'">
