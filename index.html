@@ -57,14 +57,16 @@
             background-size: cover;
             background-position: center;
             background-color: var(--bg-color);
+            /* ภาพพื้นหลังเมนูย่อยค่าเริ่มต้น (ครอบคลุมทุกหน้าเมนู) */
+            background-image: url('images/bg-main.jpg'); 
         }
 
         .screen.active {
             display: flex;
         }
 
-        #screen-main { background-image: url('images/bg-main.jpg'); }
         #screen-game { 
+            /* Override รูปแบบพื้นหลังเฉพาะหน้าเกม */
             background-image: url('images/bg-game.jpg');
             justify-content: flex-start;
         }
@@ -79,6 +81,11 @@
             background: rgba(255, 255, 255, 0.7);
             padding: 10px 30px;
             border-radius: 30px;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            color: #FF69B4;
         }
 
         .btn {
@@ -129,30 +136,71 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            box-shadow: var(--btn-shadow);
         }
 
-        /* ปุ่มเปิด/ปิดเสียง */
-        #mute-btn {
+        /* ---------------- ระบบควบคุมเสียง (แถบเลื่อน) ---------------- */
+        .audio-controls-panel {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #FFB6C1;
-            border: 3px solid #fff;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            font-size: 2rem;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 15px 20px;
+            border-radius: 25px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            border: 3px solid var(--primary);
+            z-index: 9999;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: transform 0.2s;
+            flex-direction: column;
+            gap: 15px;
         }
 
-        #mute-btn:hover {
-            transform: scale(1.1);
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .slider-row span {
+            font-size: 1.8rem;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* แต่งแถบเลื่อน Range Slider ให้น่ารัก */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 120px;
+            background: transparent;
+        }
+
+        input[type=range]:focus {
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 10px;
+            cursor: pointer;
+            background: #FFE4E1;
+            border-radius: 5px;
+            border: 1px solid #FFB6C1;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: var(--secondary);
+            cursor: pointer;
+            margin-top: -8px; /* จัดกึ่งกลาง (10/2 - 24/2) */
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            border: 2px solid white;
+        }
+
+        /* ปรับสี thumb แถบที่สองให้ต่างกัน */
+        #sfx-slider::-webkit-slider-thumb {
+            background: var(--accent);
         }
 
         /* Panel สำหรับหน้าเลือกพยัญชนะ */
@@ -200,19 +248,20 @@
             position: relative;
         }
 
-        .game-title { font-size: 2rem; color: #fff; background: #FF69B4; padding: 10px 20px; border-radius: 20px; }
+        .game-title { font-size: 2rem; color: #fff; background: #FF69B4; padding: 10px 20px; border-radius: 20px; box-shadow: var(--btn-shadow); }
         
         .top-right-panel {
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-end;
             gap: 15px;
-            margin-right: 70px; /* เว้นระยะไม่ให้ทับซ้อนปุ่ม Mute มุมจอ */
+            /* เพิ่มระยะเว้นจากแถบปรับเสียงที่กว้างขึ้น */
+            margin-right: 200px; 
         }
 
-        .score-board { font-size: 2rem; color: #fff; background: #87CEFA; padding: 10px 20px; border-radius: 20px; }
+        .score-board { font-size: 2rem; color: #fff; background: #87CEFA; padding: 10px 20px; border-radius: 20px; box-shadow: var(--btn-shadow); }
 
-        /* ปุ่มออกเกม (ตำแหน่งด้านบน) */
+        /* ปุ่มออกเกม (ตำแหน่งด้านบนขวาใกล้คะแนน) */
         #exit-btn {
             background: #FF6347;
             color: white;
@@ -310,18 +359,26 @@
     </style>
 </head>
 <body>
-
     <!-- แท็กเสียง BGM 2 แทร็ก -->
     <audio id="bg-music-menu" src="images/bg-main.mp3" loop></audio>
     <audio id="bg-music-game" src="images/bg-game.mp3" loop></audio>
     
-    <!-- ปุ่มเปิดปิดเสียง -->
-    <button id="mute-btn" onclick="toggleMute()">🔊</button>
+    <!-- แถบควบคุมระดับเสียง (BGM และ SFX) วางมุมขวาบนสุด -->
+    <div class="audio-controls-panel">
+        <div class="slider-row">
+            <span title="ดนตรี (BGM)">🎵</span>
+            <input type="range" id="bgm-slider" min="0" max="1" step="0.05" value="0.5" oninput="updateBGMVolume()">
+        </div>
+        <div class="slider-row">
+            <span title="เอฟเฟกต์ (SFX)">🔊</span>
+            <input type="range" id="sfx-slider" min="0" max="1" step="0.05" value="0.5" oninput="updateSFXVolume()">
+        </div>
+    </div>
 
     <!-- 1. หน้าจอหลัก -->
     <div id="screen-main" class="screen active">
         <h1>เกมยิงลูกโป่งพยัญชนะไทย</h1>
-        <!-- ผูกระบบเริ่มเสียงเข้ากับปุ่มแรกสุด -->
+        <!-- ผูกระบบเริ่มเสียงเข้ากับปุ่มแรกสุด เพื่อปลดล็อก AudioContext (Global Event) -->
         <button class="btn" onclick="initAudio(); switchScreen('screen-mode')">เข้าเกม</button>
     </div>
 
@@ -355,14 +412,14 @@
     <!-- 3. หน้าเลือกความยาก และ ความเร็ว -->
     <div id="screen-difficulty" class="screen">
         <div class="panel">
-            <div class="count-control" style="background: rgba(255,182,193,0.3); padding: 10px 20px; border-radius: 20px;">
+            <div class="count-control" style="background: rgba(255,182,193,0.5); padding: 10px 20px; border-radius: 20px; box-shadow: var(--btn-shadow);">
                 <span class="speed-label">ความเร็วลูกโป่ง:</span>
                 <button class="count-btn" onclick="changeSpeed(-1)">-</button>
                 <span id="speed-level-display" style="font-size: 2.5rem; font-weight: bold; color: #FF69B4; width: 40px;">1</span>
                 <button class="count-btn" onclick="changeSpeed(1)">+</button>
             </div>
             
-            <h2 style="margin-top: 10px;">เลือกระดับความยาก</h2>
+            <h2 style="margin-top: 20px;">เลือกระดับความยาก</h2>
             <br>
             <button class="btn" style="background:#a8e6cf" onclick="startGame('easy')">ง่าย</button>
             <button class="btn btn-yellow" onclick="startGame('medium')">ปานกลาง</button>
@@ -384,15 +441,14 @@
 
             <!-- รวมคะแนนและปุ่มออกเกมไว้ในบล็อกเดียวกันทางขวา -->
             <div class="top-right-panel">
-                <div class="score-board">คะแนน: <span id="score-display">0</span> / <span id="max-score-display">5</span></div>
                 <button id="exit-btn" onclick="exitGame()">ออกเกม</button>
+                <div class="score-board">คะแนน: <span id="score-display">0</span> / <span id="max-score-display">5</span></div>
             </div>
         </div>
 
         <div class="game-bottom">
             <video id="webcam-video" autoplay playsinline></video>
             <canvas id="game-canvas"></canvas>
-            <!-- ปุ่มเริ่มเกมด้านใน AR -->
             <button id="start-ar-btn" class="btn" onclick="startCountdown()">เริ่มเกม</button>
             <div id="countdown-display" class="countdown-text">5</div>
             <div id="debug-msg">สถานะ: รอโหลดกล้อง...</div>
@@ -405,23 +461,46 @@
             <h1>จบเกม!</h1>
             <h2 style="font-size:3rem">คะแนนที่ได้: <span id="final-score" style="color:var(--primary)">0</span></h2>
             <br><br>
-            <!-- เมื่อกดเล่นอีกครั้ง ให้กลับไปหน้า Mode -->
             <button class="btn" onclick="resetToMode()">เล่นอีกครั้ง</button>
         </div>
     </div>
 
     <script>
         // ==========================================
-        // 0. ระบบเสียง (Dual BGM & Web Audio API SFX)
+        // 0. ระบบเสียง (Volume Sliders & Procedural SFX)
         // ==========================================
         let audioCtx;
-        let isMuted = false;
+        
+        // ตัวแปรเก็บระดับเสียง 0.0 - 1.0
+        let globalBgmVolume = 0.5;
+        let globalSfxVolume = 0.5;
+        
         let currentBGMType = 'none';
         
         const bgmMenu = document.getElementById('bg-music-menu');
         const bgmGame = document.getElementById('bg-music-game');
-        const muteBtn = document.getElementById('mute-btn');
 
+        // ฟังก์ชันอัปเดตเสียง BGM แบบ Real-time
+        function updateBGMVolume() {
+            globalBgmVolume = parseFloat(document.getElementById('bgm-slider').value);
+            bgmMenu.volume = globalBgmVolume;
+            bgmGame.volume = globalBgmVolume;
+            
+            // ช่วยปลดล็อกเสียงเผื่อผู้เล่นปรับแถบก่อนกดเข้าเกม
+            if (!audioCtx) initAudio();
+        }
+
+        // ฟังก์ชันอัปเดตเสียง SFX แบบ Real-time
+        function updateSFXVolume() {
+            globalSfxVolume = parseFloat(document.getElementById('sfx-slider').value);
+            if (!audioCtx) initAudio();
+        }
+
+        // ตั้งค่าเริ่มต้นของ Audio Elements
+        bgmMenu.volume = globalBgmVolume;
+        bgmGame.volume = globalBgmVolume;
+
+        // ฟังก์ชันเริ่มระบบเสียงครั้งแรกที่คลิก ป้องกัน Autoplay Block
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -436,7 +515,6 @@
 
         function switchBGM(type) {
             currentBGMType = type;
-            if (isMuted) return; 
 
             if (type === 'menu') {
                 bgmGame.pause();
@@ -448,27 +526,15 @@
             }
         }
 
-        function toggleMute() {
-            isMuted = !isMuted;
-            if (isMuted) {
-                bgmMenu.pause();
-                bgmGame.pause();
-                muteBtn.innerText = '🔇';
-            } else {
-                initAudio(); 
-                switchBGM(currentBGMType); 
-                muteBtn.innerText = '🔊';
-            }
-        }
-
-        // --- Procedural Sound Effects ---
+        // --- Procedural Sound Effects (ผูกค่าเข้ากับ globalSfxVolume) ---
         function playHoverSound() {
-            if (!audioCtx || isMuted) return;
+            if (!audioCtx || globalSfxVolume === 0) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(800, audioCtx.currentTime); 
-            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); 
+            // นำ globalSfxVolume ไปคูณเพื่อหรี่ความดัง
+            gain.gain.setValueAtTime(0.05 * globalSfxVolume, audioCtx.currentTime); 
             gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -477,13 +543,13 @@
         }
 
         function playClickSound() {
-            if (!audioCtx || isMuted) return;
+            if (!audioCtx || globalSfxVolume === 0) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'triangle';
             osc.frequency.setValueAtTime(500, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1); 
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.2 * globalSfxVolume, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -492,13 +558,13 @@
         }
 
         function playPopSound() {
-            if (!audioCtx || isMuted) return;
+            if (!audioCtx || globalSfxVolume === 0) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'sine'; 
             osc.frequency.setValueAtTime(800, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.8, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.8 * globalSfxVolume, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -507,12 +573,12 @@
         }
 
         function playBeepSound(isHighPitch) {
-            if (!audioCtx || isMuted) return;
+            if (!audioCtx || globalSfxVolume === 0) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = 'square'; 
             osc.frequency.setValueAtTime(isHighPitch ? 880 : 440, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.15 * globalSfxVolume, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
             osc.connect(gain);
             gain.connect(audioCtx.destination);
@@ -520,6 +586,7 @@
             osc.stop(audioCtx.currentTime + 0.15);
         }
 
+        // เชื่อมโยงเสียง Hover และ Click เข้ากับทุกปุ่ม UI
         function attachUISoundsToButton(btn) {
             btn.addEventListener('mouseenter', () => { if(audioCtx) playHoverSound(); });
             btn.addEventListener('click', () => { if(audioCtx) playClickSound(); });
@@ -568,13 +635,13 @@
         // 2. State & Settings
         // ==========================================
         let qCount = 5;
-        let speedLevel = 1; // ระดับความเร็ว 1 ถึง 5 (Default 1)
+        let speedLevel = 1; // ระดับความเร็ว 1 ถึง 5
         let targetConsonant = null;
         let difficultyLevel = 'easy';
         let score = 0;
         
         let playState = 'WAIT';
-        let countdownTimer = 5; // เปลี่ยนเป็น 5 วินาที
+        let countdownTimer = 5; 
         let countdownInterval;
 
         let balloonQueue = []; 
@@ -587,7 +654,7 @@
         const videoElement = document.getElementById('webcam-video');
         
         let pointer = { x: -100, y: -100, isHand: false }; 
-        const POINTER_RADIUS = 20; // รัศมีเป้าเล็งวงกลมน่ารัก
+        const POINTER_RADIUS = 20; // ขนาดเป้าเล็งกะทัดรัด (โคนนิ้วกลาง)
         
         let cameraObj = null;
         let handsObj = null;
@@ -631,7 +698,6 @@
             document.getElementById('question-count-display').innerText = qCount;
         }
 
-        // ฟังก์ชันตั้งค่าระดับความเร็ว
         function changeSpeed(val) {
             speedLevel += val;
             if(speedLevel < 1) speedLevel = 1;
@@ -761,9 +827,7 @@
                     if(radius < 40) radius = 40;
                     if(radius > 80) radius = 80;
 
-                    // การคำนวณความเร็ว (Speed Logic) ตามค่า speedLevel (1 ถึง 5)
                     let baseSpeedY = (Math.random() * 0.3 + 0.5) * (canvas.height/600);
-                    // ตัวคูณความเร็ว: ระดับ 1 คูณ 1.0 (ปกติ) / ระดับ 5 คูณ 3.8 (เร็วมาก)
                     let speedMultiplier = 1 + (speedLevel - 1) * 0.7; 
 
                     activeBalloons.push({
@@ -844,7 +908,7 @@
                 ctx.textBaseline = 'middle';
                 ctx.fillText(b.char, b.x, b.y);
 
-                // เช็คการชน (Circle-to-Circle Collision) ระหว่างลูกโป่ง กับ วงกลมเป้าเล็ง
+                // ตรวจจับการชน: ลูกโป่ง กับ เป้าเล็ง (Circle-to-Circle Collision)
                 if (playState === 'PLAY') {
                     let dist = Math.hypot(pointer.x - b.x, pointer.y - b.y);
                     if (dist < b.radius + POINTER_RADIUS) {
@@ -899,7 +963,7 @@
         }
 
         // ==========================================
-        // 6. MediaPipe AR & Touch Fallback 
+        // 6. MediaPipe AR & Touch/Mouse Fallback 
         // ==========================================
         function initAR() {
             document.getElementById('debug-msg').innerText = "สถานะ: กำลังโหลดกล้อง...";
@@ -997,7 +1061,7 @@
         function drawCrosshair() {
             if (pointer.x < 0 || pointer.y < 0) return;
 
-            // เป้าเล็งวงกลมน่ารัก (รัศมีอ้างอิงจาก POINTER_RADIUS)
+            // เป้าเล็งวงกลม (รัศมีอ้างอิงจาก POINTER_RADIUS = 20)
             ctx.beginPath();
             ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             ctx.arc(pointer.x, pointer.y, POINTER_RADIUS, 0, Math.PI * 2);
@@ -1082,7 +1146,7 @@
             document.getElementById('start-ar-btn').style.display = 'none';
             document.getElementById('countdown-display').style.display = 'block';
             playState = 'COUNTDOWN';
-            countdownTimer = 5; // เปลี่ยนเป็นนับถอยหลัง 5 วินาที
+            countdownTimer = 5; 
             updateTargetUI('COUNTDOWN');
             
             switchBGM('game'); 
@@ -1099,7 +1163,7 @@
                     document.getElementById('countdown-display').style.display = 'none';
                     playState = 'PLAY';
                     updateTargetUI('PLAY'); 
-                    playBeepSound(true); // เสียงสูงขึ้นเมื่อเกมเริ่ม
+                    playBeepSound(true); 
                 }
             }, 1000);
         }
